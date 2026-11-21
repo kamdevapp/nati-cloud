@@ -1,0 +1,20 @@
+# Nati Cloud for a NAS (Synology Container Manager, QNAP Container Station, Unraid, Portainer…)
+# Chmura Nati dla NAS-a – wklej ten plik jako „projekt” / „stack” w panelu kontenerów.
+#
+# 1. Copy the whole package folder to the NAS (e.g. /volume1/docker/nati).
+# 2. Change the two paths below: your music folder and a folder for the cloud data.
+# 3. Create the project from this file. Then open http://NAS-ADDRESS:8090 in the Nati app.
+services:
+  nati:
+    build: ./server
+    image: nati-chmura:latest
+    container_name: nati
+    ports:
+      - "8090:8080"                       # change 8090 if that port is taken
+    volumes:
+      - /volume1/music:/music:ro          # ← your music (read-only) / Twoja muzyka (tylko do odczytu)
+      - /volume1/docker/nati/data:/data   # ← cloud data / dane chmury (baza, okładki, pobrana muzyka)
+    # user: "1026:100"                    # NAS user id:group id that owns the data folder (Synology: id <user>)
+    environment:
+      HOME: /data/.dom
+    restart: unless-stopped

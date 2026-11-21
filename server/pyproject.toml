@@ -1,0 +1,36 @@
+[project]
+name = "nati-server"
+version = "0.20.0"
+description = "Nati Cloud – your own home music server for the Nati player"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "mutagen>=1.47",
+    "pyjwt>=2.8",
+    "argon2-cffi>=23.1",
+    "pydantic-settings>=2.4",
+    "python-multipart>=0.0.9",
+    "yt-dlp[default]>=2025.1",
+    "ytmusicapi>=1.8",
+    "httpx>=0.27",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["static/*"]

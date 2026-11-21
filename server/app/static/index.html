@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nati</title>
+<style>
+  :root { --bg:#121212; --panel:#1e1e1e; --hover:#2a2a2a; --text:#f2f2f2; --muted:#a7a7a7; --accent:#e0457b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); padding-bottom:90px; }
+  header { display:flex; gap:12px; align-items:center; padding:12px 16px; background:var(--panel); position:sticky; top:0; z-index:2; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:22px; color:var(--accent); letter-spacing:1px; }
+  input, button { font:inherit; border-radius:20px; border:none; padding:8px 14px; }
+  input { background:#2b2b2b; color:var(--text); min-width:0; }
+  button { background:var(--accent); color:#fff; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--muted); border:1px solid #444; }
+  #search { flex:1; max-width:420px; }
+  main { padding:16px; max-width:1200px; margin:0 auto; }
+  .card { max-width:360px; margin:60px auto; background:var(--panel); padding:24px; border-radius:12px; display:flex; flex-direction:column; gap:12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:16px; }
+  .album { background:var(--panel); padding:12px; border-radius:8px; cursor:pointer; }
+  .album:hover { background:var(--hover); }
+  .cover { width:100%; aspect-ratio:1; border-radius:6px; background:#333 center/cover; display:flex; align-items:center; justify-content:center; font-size:40px; color:#555; }
+  .album b, .album span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .album span, .muted { color:var(--muted); font-size:14px; }
+  table { width:100%; border-collapse:collapse; }
+  td { padding:8px; border-bottom:1px solid #222; }
+  tr.track { cursor:pointer; } tr.track:hover { background:var(--hover); }
+  tr.playing td { color:var(--accent); }
+  .album-head { display:flex; gap:20px; align-items:flex-end; margin-bottom:20px; flex-wrap:wrap; }
+  .album-head .cover { width:180px; }
+  footer { position:fixed; bottom:0; left:0; right:0; background:var(--panel); padding:10px 16px; display:flex; gap:16px; align-items:center; }
+  footer audio { flex:1; min-width:0; }
+  #now { min-width:0; max-width:40%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .err { color:#ff6b6b; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Nati</h1>
+  <input id="search" placeholder="Szukaj albumów i wykonawców…" hidden>
+  <span style="flex:1"></span>
+  <button id="scanBtn" class="ghost" hidden>Skanuj bibliotekę</button>
+  <button id="logoutBtn" class="ghost" hidden>Wyloguj</button>
+</header>
+<main id="view"></main>
+<footer id="player" hidden>
+  <div id="now"></div>
+  <audio id="audio" controls></audio>
+</footer>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const view = $('#view');
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (sec) => { sec = Math.round(sec); return Math.floor(sec/60) + ':' + String(sec%60).padStart(2,'0'); };
+let token = null, user = null, queue = [], qi = -1;
+try { token = localStorage.getItem('nati_token'); } catch {}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { 'Content-Type':'application/json',
+    ...(token ? { Authorization: 'Bearer ' + token } : {}), ...opts.headers } });
+  if (res.status === 401 && token) { logout(); throw new Error('Sesja wygasła'); }
+  const body = res.status === 204 ? null : await res.json();
+  if (!res.ok) throw new Error(typeof body?.detail === 'string' ? body.detail : 'Błąd ' + res.status);
+  return body;
+}
+const media = (path) => path + (path.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+
+function authForm(title, button, onSubmit) {
+  view.innerHTML = `<form class="card"><h2>${title}</h2>
+    <input name="u" placeholder="Login" autocomplete="username" required>
+    <input name="p" type="password" placeholder="Hasło (min. 6 znaków)" autocomplete="current-password" required minlength="6">
+    <button>${button}</button><div class="err"></div></form>`;
+  const f = view.querySelector('form');
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    try { await onSubmit({ username: f.u.value, password: f.p.value }); }
+    catch (err) { f.querySelector('.err').textContent = err.message; }
+  };
+}
+
+function loggedIn(res) {
+  token = res.access_token; user = res.user;
+  try { localStorage.setItem('nati_token', token); } catch {}
+  showLibrary();
+}
+
+function logout() {
+  token = null; user = null;
+  try { localStorage.removeItem('nati_token'); } catch {}
+  $('#audio').pause(); $('#player').hidden = true;
+  start();
+}
+
+async function start() {
+  for (const el of ['#search', '#scanBtn', '#logoutBtn']) $(el).hidden = true;
+  const info = await api('/api/info');
+  if (info.setup_required) {
+    return authForm('Witaj w Nati! Załóż konto administratora', 'Utwórz konto',
+      async (c) => loggedIn(await api('/api/setup', { method:'POST', body: JSON.stringify(c) })));
+  }
+  if (token) {
+    try { user = await api('/api/auth/me'); return showLibrary(); } catch {}
+  }
+  authForm('Zaloguj się', 'Zaloguj', async (c) => loggedIn(await api('/api/auth/login', { method:'POST', body: JSON.stringify(c) })));
+}
+
+async function showLibrary(q = '') {
+  $('#search').hidden = false; $('#logoutBtn').hidden = false; $('#scanBtn').hidden = !user?.is_admin;
+  const page = await api('/api/albums?limit=500' + (q ? '&q=' + encodeURIComponent(q) : ''));
+  if (!page.items.length) {
+    const st = await api('/api/library/scan');
+    view.innerHTML = `<p class="muted">${q ? 'Nic nie znaleziono.' : st.running
+      ? 'Trwa skanowanie biblioteki… (' + st.scanned + ' plików)' : 'Biblioteka jest pusta. Sprawdź folder z muzyką (NATI_MUSIC_DIRS) i uruchom skan.'}</p>`;
+    if (st.running && !q) setTimeout(() => showLibrary(), 2000);
+    return;
+  }
+  view.innerHTML = `<p class="muted">${page.total} albumów</p><div class="grid">` + page.items.map(a => `
+    <div class="album" data-id="${a.id}">
+      <div class="cover" ${a.has_cover ? `style="background-image:url('${media('/api/albums/' + a.id + '/cover')}')"` : ''}>${a.has_cover ? '' : '♪'}</div>
+      <b>${esc(a.title)}</b><span>${esc(a.artist_name)}${a.year ? ' · ' + a.year : ''}</span>
+    </div>`).join('') + '</div>';
+  view.querySelectorAll('.album').forEach(el => el.onclick = () => showAlbum(el.dataset.id));
+}
+
+async function showAlbum(id) {
+  const a = await api('/api/albums/' + id);
+  view.innerHTML = `<button class="ghost" id="back">← Wróć</button>
+    <div class="album-head"><div class="cover" ${a.has_cover ? `style="background-image:url('${media('/api/albums/' + a.id + '/cover')}')"` : ''}>${a.has_cover ? '' : '♪'}</div>
+    <div><h2>${esc(a.title)}</h2><p class="muted">${esc(a.artist_name)}${a.year ? ' · ' + a.year : ''} · ${a.track_count} utworów</p>
+    <button id="playAll">▶ Odtwórz</button></div></div>
+    <table>` + a.tracks.map((t, i) => `<tr class="track" data-i="${i}" data-id="${t.id}">
+      <td class="muted">${t.track_no ?? ''}</td><td>${esc(t.title)}<br><span class="muted">${esc(t.artist_name)}</span></td>
+      <td class="muted">${esc(t.format)}${t.bitrate ? ' ' + t.bitrate + 'k' : ''}</td><td class="muted">${fmt(t.duration)}</td></tr>`).join('') + '</table>';
+  $('#back').onclick = () => showLibrary($('#search').value);
+  $('#playAll').onclick = () => play(a.tracks, 0);
+  view.querySelectorAll('tr.track').forEach(el => el.onclick = () => play(a.tracks, +el.dataset.i));
+  markPlaying();
+}
+
+function play(tracks, i) { queue = tracks; qi = i; playCurrent(); }
+function playCurrent() {
+  const t = queue[qi]; if (!t) return;
+  $('#player').hidden = false;
+  $('#now').innerHTML = `<b>${esc(t.title)}</b><br><span class="muted">${esc(t.artist_name)}</span>`;
+  const audio = $('#audio'); audio.src = media('/api/stream/' + t.id); audio.play();
+  document.title = t.title + ' · Nati';
+  markPlaying();
+}
+function markPlaying() {
+  const id = queue[qi]?.id;
+  view.querySelectorAll('tr.track').forEach(el => el.classList.toggle('playing', +el.dataset.id === id));
+}
+$('#audio').onended = () => { if (qi < queue.length - 1) { qi++; playCurrent(); } };
+
+let searchTimer;
+$('#search').oninput = (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => showLibrary(e.target.value.trim()), 250); };
+$('#logoutBtn').onclick = logout;
+$('#scanBtn').onclick = async () => { await api('/api/library/scan', { method:'POST' }); showLibrary(); };
+
+start().catch(err => view.innerHTML = `<p class="err">Nie można połączyć się z serwerem: ${esc(err.message)}</p>`);
+</script>
+</body>
+</html>
