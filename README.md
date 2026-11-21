@@ -17,11 +17,14 @@ No subscription, no ads, no tracking. The Nati apps (computer, phone, TV) connec
 ## Install
 
 ### Linux server or Raspberry Pi (Docker)
-Download `nati-chmura-<version>.tar.gz` from
-[Releases](https://github.com/kamdevapp/nati/releases), then:
 ```bash
-tar xzf nati-chmura-*.tar.gz && cd nati-chmura-*/ && ./install.sh
+git clone https://github.com/kamdevapp/nati-cloud && cd nati-cloud && ./chmura/install.sh
 ```
+Later updates: `git pull && ./chmura/install.sh --update` (your music, accounts and playlists stay).
+Without git: download `nati-chmura-<version>.tar.gz` from
+[Releases](https://github.com/kamdevapp/nati/releases), then
+`tar xzf nati-chmura-*.tar.gz && cd nati-chmura-*/ && ./install.sh`.
+
 The installer asks for the language, the data folder, your music folder and the port. It sets up Docker
 if needed and prints the address to type into the app. On the first connection you create the
 administrator account. Details: [`chmura/README.md`](chmura/README.md).
@@ -75,9 +78,11 @@ Bug reports and pull requests are welcome. Translations of the app:
 **Nati Cloud to Twój domowy serwer muzyki dla odtwarzacza Nati.** Twoja biblioteka, konta dla domowników,
 playlisty i muzyka z internetu zapisywana na *Twoim* dysku. Bez abonamentu, reklam i śledzenia.
 
-- **Serwer albo Raspberry Pi:** pobierz `nati-chmura-<wersja>.tar.gz` z
-  [Releases](https://github.com/kamdevapp/nati/releases) i uruchom `./instaluj.sh`. Instalator po polsku
-  pyta o folder danych, folder z muzyką i port. Szczegóły: [`chmura/CZYTAJ.md`](chmura/CZYTAJ.md).
+- **Serwer albo Raspberry Pi:**
+  `git clone https://github.com/kamdevapp/nati-cloud && cd nati-cloud && ./chmura/instaluj.sh`.
+  Aktualizacja: `git pull && ./chmura/instaluj.sh --aktualizuj`. Albo paczka `nati-chmura-<wersja>.tar.gz`
+  z [Releases](https://github.com/kamdevapp/nati/releases) i `./instaluj.sh`. Instalator po polsku pyta
+  o folder danych, folder z muzyką i port. Szczegóły: [`chmura/CZYTAJ.md`](chmura/CZYTAJ.md).
 - **NAS:** [`chmura/docker-compose.nas.yml`](chmura/docker-compose.nas.yml).
 - **Komputer bez Dockera:** w aplikacji Nati wybierz **Chmura na tym komputerze**.
 

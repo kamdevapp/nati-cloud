@@ -15,6 +15,14 @@ set -euo pipefail
 
 VERSION="__WERSJA__"                       # set when the package is built
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Package: server code in ./server. Git checkout (github.com/kamdevapp/nati-cloud → ./chmura/install.sh):
+# in ../server, and the version is read from it (the placeholder is split so the package build leaves it alone).
+SERVER_DIR="$HERE/server"
+[[ ! -f $SERVER_DIR/Dockerfile && -f $HERE/../server/Dockerfile ]] && SERVER_DIR="$(cd "$HERE/../server" && pwd)"
+if [[ $VERSION == "__WER""SJA__" ]]; then
+  VERSION="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$SERVER_DIR/app/__init__.py" 2>/dev/null || true)"
+  VERSION="${VERSION:-dev}"
+fi
 CONF_FILE="${NATI_CONF:-/etc/nati-chmura.conf}"   # pointer: where the cloud is installed
 DEFAULT_HOME=/srv/nati
 
@@ -556,15 +564,19 @@ wait_ready() {
 
 # Program (server code) from this package → $NATI_HOME/program (the old one is replaced entirely).
 copy_program() {
-  [[ -f $HERE/server/Dockerfile ]] || fail "$(t missing_server "$HERE/server")"
+  [[ -f $SERVER_DIR/Dockerfile ]] || fail "$(t missing_server "$SERVER_DIR")"
   rm -rf "$NATI_HOME/program.new"
   mkdir -p "$NATI_HOME/program.new"
-  cp -r "$HERE/server/." "$NATI_HOME/program.new/"
+  # Only what the image needs – a git checkout may also hold .venv, data or tests.
+  cp "$SERVER_DIR/Dockerfile" "$SERVER_DIR/pyproject.toml" "$NATI_HOME/program.new/"
+  cp -r "$SERVER_DIR/app" "$NATI_HOME/program.new/"
+  find "$NATI_HOME/program.new" -name __pycache__ -type d -prune -exec rm -rf {} +
+  printf '__pycache__\n*.pyc\n' > "$NATI_HOME/program.new/.dockerignore"
   rm -rf "$NATI_HOME/program"
   mv "$NATI_HOME/program.new" "$NATI_HOME/program"
   if [[ $HERE != "$NATI_HOME" ]]; then
     rm -f "$NATI_HOME/install.sh" "$NATI_HOME/instaluj.sh"
-    cp "$HERE/install.sh" "$NATI_HOME/install.sh"
+    sed "s/__WER""SJA__/$VERSION/" "$HERE/install.sh" > "$NATI_HOME/install.sh"   # from git: with the version
     ln -s install.sh "$NATI_HOME/instaluj.sh"
   fi
   chmod +x "$NATI_HOME/install.sh"
