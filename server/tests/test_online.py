@@ -179,15 +179,31 @@ def test_disabled(app_client, admin, monkeypatch):
 
 @pytest.mark.skipif(not __import__("os").environ.get("NATI_NETWORK_TESTS"), reason="wymaga internetu (NATI_NETWORK_TESTS=1)")
 def test_real_ytdlp_update(tmp_path):
-    """Prawdziwa aktualizacja yt-dlp: nowa wersja w osobnym folderze, przełączenie dowiązania."""
+    """Prawdziwa aktualizacja yt-dlp: nowa wersja w osobnym folderze, przełączenie wskaźnika."""
     y = YtDlp(tmp_path / "tools")
     version = asyncio.run(y.update())
     assert version[:4].isdigit()
-    assert (tmp_path / "tools" / "current").is_symlink()
-    assert "current" in y._env()["PYTHONPATH"] or "releases" in y._env()["PYTHONPATH"]
+    assert (tmp_path / "tools" / "current.txt").is_file()
+    assert "releases" in y._env()["PYTHONPATH"]
     assert not y.update_due()
     asyncio.run(y.update())  # druga aktualizacja usuwa poprzednią wersję
     assert len(list((tmp_path / "tools" / "releases").iterdir())) == 1
+
+
+def test_ytdlp_pointer_and_legacy_symlink(tmp_path):
+    """Aktualny yt-dlp: wskaźnik current.txt, a bez niego – dowiązanie ze starszych wersji."""
+    tools = tmp_path / "tools"
+    for name in ("111", "222"):
+        (tools / "releases" / name / "yt_dlp").mkdir(parents=True)
+    y = YtDlp(tools)
+    assert "PYTHONPATH" not in y._env() or "releases" not in y._env()["PYTHONPATH"]
+    try:
+        (tools / "current").symlink_to(Path("releases") / "111", target_is_directory=True)
+        assert y._env()["PYTHONPATH"].startswith(str((tools / "releases" / "111").resolve()))
+    except OSError:  # Windows bez praw do dowiązań
+        pass
+    (tools / "current.txt").write_text("222")
+    assert y._env()["PYTHONPATH"].startswith(str(tools / "releases" / "222"))
 
 
 class FakePreviewYtDlp(YtDlp):

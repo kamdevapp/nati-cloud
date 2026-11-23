@@ -31,6 +31,15 @@ def init_db(db_url: str) -> None:
         migrate_unknown(db)
 
 
+def close_db() -> None:
+    """Zamyka połączenia z bazą (koniec pracy serwera) – na Windowsie otwartego pliku bazy nie da się
+    potem usunąć ani podmienić (przywracanie kopii, czyszczenie chmury)."""
+    global _engine, _SessionLocal
+    if _engine is not None:
+        _engine.dispose()
+    _engine = _SessionLocal = None
+
+
 def new_session() -> Session:
     assert _SessionLocal is not None, "init_db() nie zostało wywołane"
     return _SessionLocal()

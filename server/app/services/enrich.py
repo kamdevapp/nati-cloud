@@ -61,11 +61,11 @@ class Enricher:
             return
         if data_dir is not None:
             marker = data_dir / ".enrich-version"
-            if marker.read_text().strip() != str(self.VERSION) if marker.exists() else True:
+            if marker.read_text(encoding="utf-8").strip() != str(self.VERSION) if marker.exists() else True:
                 with self._session_factory() as db:
                     db.execute(update(Artist).values(enriched_at=None))
                     db.commit()
-                marker.write_text(str(self.VERSION))
+                marker.write_text(str(self.VERSION), encoding="utf-8")
         self._thread = threading.Thread(target=self._loop, name="nati-enrich", daemon=True)
         self._thread.start()
         self.request()

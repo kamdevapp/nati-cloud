@@ -17,7 +17,7 @@ _USES = re.compile(r'(?:AppError\(\s*status\.\w+,\s*|(?:Coded|Edit|YtDlp|Spotify
 def test_every_used_code_has_a_message():
     used = set()
     for f in APP.rglob("*.py"):
-        used |= set(_USES.findall(f.read_text()))
+        used |= set(_USES.findall(f.read_text(encoding="utf-8")))
     assert len(used) > 60
     assert not used - MESSAGES.keys(), f"kody bez tekstu: {sorted(used - MESSAGES.keys())}"
 
@@ -46,7 +46,7 @@ def test_app_has_translations_for_every_code():
     if not i18n.is_dir():
         pytest.skip("bez kodu aplikacji (repozytorium nati-cloud) – tłumaczenia są w nati-translations")
     for lang in ("en", "pl"):
-        texts = json.loads((i18n / f"{lang}.json").read_text())
+        texts = json.loads((i18n / f"{lang}.json").read_text(encoding="utf-8"))
         missing = [c for c in MESSAGES if f"server.{c}" not in texts]
         missing += [k for k in STORAGE_LABELS if f"storage.{k}" not in texts]
         assert not missing, f"{lang}.json – brak: {missing}"

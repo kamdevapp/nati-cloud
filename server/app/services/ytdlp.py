@@ -69,14 +69,27 @@ class YtDlp:
         return []
 
     @property
-    def _current(self) -> Path:
-        """Dowiązanie do aktualnej, kompletnej instalacji (tools/current → tools/releases/<czas>)."""
-        return self.tools_dir / "current"
+    def _pointer(self) -> Path:
+        """Plik z nazwą aktualnej, kompletnej instalacji (tools/releases/<czas>). Plik, nie dowiązanie –
+        na Windowsie dowiązania wymagają praw administratora."""
+        return self.tools_dir / "current.txt"
+
+    @property
+    def _current(self) -> Path | None:
+        try:
+            name = self._pointer.read_text(encoding="utf-8").strip()
+            if name:
+                return self.tools_dir / "releases" / name
+        except FileNotFoundError:
+            pass
+        legacy = self.tools_dir / "current"  # starsze wersje: dowiązanie tools/current → releases/<czas>
+        return legacy.resolve() if legacy.is_symlink() or legacy.is_dir() else None
 
     def _env(self) -> dict[str, str]:
         env = dict(os.environ)
-        if (self._current / "yt_dlp").is_dir():
-            env["PYTHONPATH"] = str(self._current.resolve()) + os.pathsep + env.get("PYTHONPATH", "")
+        current = self._current
+        if current is not None and (current / "yt_dlp").is_dir():
+            env["PYTHONPATH"] = str(current) + os.pathsep + env.get("PYTHONPATH", "")
         return env
 
     @staticmethod
@@ -175,7 +188,7 @@ class YtDlp:
         if not audio:
             raise YtDlpError("ytdlp.file_missing")
         info_file = workdir / "audio.info.json"
-        info = json.loads(info_file.read_text()) if info_file.exists() else {}
+        info = json.loads(info_file.read_text(encoding="utf-8")) if info_file.exists() else {}
         return DownloadResult(audio[0], info)
 
     async def fetch_audio(self, url: str, workdir: Path, on_info: Callable[[str, int | None], None],
@@ -227,11 +240,13 @@ class YtDlp:
             if proc.returncode != 0:
                 shutil.rmtree(target, ignore_errors=True)
                 raise YtDlpError("ytdlp.update_failed", error=out.decode(errors="replace")[-500:])
-            # Atomowe przełączenie dowiązania.
-            tmp_link = self.tools_dir / "current.new"
-            tmp_link.unlink(missing_ok=True)
-            tmp_link.symlink_to(target.relative_to(self.tools_dir), target_is_directory=True)
-            os.replace(tmp_link, self._current)
+            # Atomowe przełączenie wskaźnika.
+            tmp = self.tools_dir / "current.txt.new"
+            tmp.write_text(target.name, encoding="utf-8")
+            os.replace(tmp, self._pointer)
+            legacy = self.tools_dir / "current"
+            if legacy.is_symlink():
+                legacy.unlink()
             # Stare wersje – usuwamy (trwające procesy mają już swoje pliki otwarte).
             for old in releases.iterdir():
                 if old != target:

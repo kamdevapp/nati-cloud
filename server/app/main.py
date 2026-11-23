@@ -89,6 +89,7 @@ async def lifespan(app: FastAPI):
     await app.state.downloads.stop()
     await app.state.preview.stop()
     await app.state.video.stop()
+    db.close_db()
 
 
 async def _housekeeping(app: FastAPI, trash_days: int):

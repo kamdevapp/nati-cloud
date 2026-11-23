@@ -3,6 +3,7 @@
 import os
 import sqlite3
 import stat
+import sys
 
 import mutagen
 import pytest
@@ -171,6 +172,7 @@ def test_only_admin_changes_library(app_client, admin, scanned):
     assert app_client.get(f"/api/tracks/{t['id']}", headers=nati).status_code == 200
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows: chmod nie blokuje zapisu w folderze")
 def test_delete_from_read_only_folder(app_client, admin, scanned, music_dir):
     folder = music_dir / "Nati" / "Koncert"
     folder.chmod(stat.S_IRUSR | stat.S_IXUSR)

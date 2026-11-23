@@ -41,9 +41,10 @@ rm -rf "$WORK/chmura/out"
     rm -rf $OUT/python/lib/python3.13/test $OUT/python/lib/python3.13/idlelib $OUT/python/lib/python3.13/tkinter \
            $OUT/python/lib/python3.13/turtledemo $OUT/python/lib/libtcl* $OUT/python/lib/libtk* $OUT/python/lib/tcl* \
            $OUT/python/lib/tk* $OUT/python/include
-    rm -rf $OUT/python/lib/python3.13/site-packages/pip $OUT/python/lib/python3.13/ensurepip \
+    # pip zostaje – serwer aktualizuje nim yt-dlp raz na dobę (pip install --target).
+    rm -rf $OUT/python/lib/python3.13/ensurepip \
            $OUT/python/lib/python3.13/config-3.13-x86_64-linux-gnu $OUT/python/lib/python3.13/pydoc_data \
-           $OUT/python/lib/itcl* $OUT/python/lib/thread* $OUT/python/bin/pip* $OUT/python/bin/idle* $OUT/python/bin/pydoc*
+           $OUT/python/lib/itcl* $OUT/python/lib/thread* $OUT/python/bin/idle* $OUT/python/bin/pydoc*
     find $OUT/python -name __pycache__ -prune -exec rm -rf {} +
     # Bez symboli debugowania (sam libpython: 140 MB → kilkanaście)
     find $OUT/python -type f \( -name "*.so" -o -name "*.so.*" \) -exec strip --strip-unneeded {} + 2>/dev/null || true

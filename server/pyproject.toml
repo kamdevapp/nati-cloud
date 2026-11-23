@@ -1,6 +1,6 @@
 [project]
 name = "nati-server"
-version = "0.21.0"
+version = "0.22.0"
 description = "Nati Cloud – your own home music server for the Nati player"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.12"

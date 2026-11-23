@@ -34,9 +34,13 @@ Use [`chmura/docker-compose.nas.yml`](chmura/docker-compose.nas.yml): set the tw
 and create a project / stack from it.
 
 ### Your desktop computer, without Docker
-In the Nati app choose **Cloud on this computer**. It downloads a self-contained package and runs the
-cloud as a systemd user service: Python, ffmpeg and QuickJS are included. The package is built by
-[`pakiety/linux/zbuduj-chmure-lokalna.sh`](pakiety/linux/zbuduj-chmure-lokalna.sh).
+In the Nati app choose **Cloud on this computer** (Linux and Windows). It downloads a self-contained
+package – Python, ffmpeg and QuickJS are included – and runs the cloud in the background:
+- **Linux:** a systemd user service; the package is built by
+  [`pakiety/linux/zbuduj-chmure-lokalna.sh`](pakiety/linux/zbuduj-chmure-lokalna.sh).
+- **Windows:** no administrator rights – [`pakiety/windows/chmura/uruchom.py`](pakiety/windows/chmura/uruchom.py)
+  runs the server without a window and starts again after sign-in; ffmpeg is cross-built by
+  [`pakiety/windows/chmura/zbuduj-ffmpeg.sh`](pakiety/windows/chmura/zbuduj-ffmpeg.sh).
 
 ## Run from source
 ```bash
@@ -84,6 +88,6 @@ playlisty i muzyka z internetu zapisywana na *Twoim* dysku. Bez abonamentu, rekl
   z [Releases](https://github.com/kamdevapp/nati/releases) i `./instaluj.sh`. Instalator po polsku pyta
   o folder danych, folder z muzyką i port. Szczegóły: [`chmura/CZYTAJ.md`](chmura/CZYTAJ.md).
 - **NAS:** [`chmura/docker-compose.nas.yml`](chmura/docker-compose.nas.yml).
-- **Komputer bez Dockera:** w aplikacji Nati wybierz **Chmura na tym komputerze**.
+- **Komputer bez Dockera (Linux, Windows):** w aplikacji Nati wybierz **Chmura na tym komputerze**.
 
 Licencja: GNU GPL v3 lub nowsza. Aplikacje Nati to osobny program, darmowy do pobrania.

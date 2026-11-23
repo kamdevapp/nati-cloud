@@ -179,7 +179,7 @@ def create_backup(s: Settings, include_downloads: bool, progress=lambda _: None)
             "music_dirs": [str(r.resolve()) for r in s.music_dirs], "online_dir": str(s.online_dir.resolve()),
             "include_downloads": include_downloads, "counts": _counts(db_copy),
         }
-        (Path(tmp) / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
+        (Path(tmp) / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
         with tarfile.open(part, "w") as tar:
             tar.add(Path(tmp) / "manifest.json", "manifest.json")
             tar.add(db_copy, "nati.db")
@@ -241,13 +241,13 @@ def backup_path(s: Settings, name: str) -> Path:
 def schedule_restore(s: Settings, name: str) -> dict:
     path = backup_path(s, name)
     manifest = read_manifest(path)
-    (s.data_dir / _RESTORE).write_text(json.dumps({"backup": str(path)}))
+    (s.data_dir / _RESTORE).write_text(json.dumps({"backup": str(path)}), encoding="utf-8")
     (s.data_dir / _WIPE).unlink(missing_ok=True)
     return manifest
 
 
 def schedule_wipe(s: Settings, include_downloads: bool) -> None:
-    (s.data_dir / _WIPE).write_text(json.dumps({"downloads": include_downloads}))
+    (s.data_dir / _WIPE).write_text(json.dumps({"downloads": include_downloads}), encoding="utf-8")
     (s.data_dir / _RESTORE).unlink(missing_ok=True)
 
 
@@ -275,7 +275,7 @@ def apply_pending(s: Settings) -> str | None:
     restore, wipe = s.data_dir / _RESTORE, s.data_dir / _WIPE
     if restore.exists():
         try:
-            backup = Path(json.loads(restore.read_text())["backup"])
+            backup = Path(json.loads(restore.read_text(encoding="utf-8"))["backup"])
             _restore(s, backup)
             log.warning("Przywrócono kopię zapasową %s", backup.name)
             return "restore"
@@ -285,7 +285,7 @@ def apply_pending(s: Settings) -> str | None:
         finally:
             restore.unlink(missing_ok=True)
     if wipe.exists():
-        downloads = json.loads(wipe.read_text()).get("downloads", False)
+        downloads = json.loads(wipe.read_text(encoding="utf-8")).get("downloads", False)
         _remove_db(s)
         for path in (s.covers_dir, s.trash_dir, s.cache_dir, s.data_dir / "tmp"):
             _empty(path)
@@ -306,9 +306,9 @@ def _reload_secret(s: Settings) -> None:
     key_file = s.data_dir / "secret.key"
     if not key_file.exists():
         import secrets as _secrets
-        key_file.write_text(_secrets.token_urlsafe(48))
+        key_file.write_text(_secrets.token_urlsafe(48), encoding="utf-8")
         key_file.chmod(0o600)
-    s.secret_key = key_file.read_text().strip()
+    s.secret_key = key_file.read_text(encoding="utf-8").strip()
 
 
 def _safe_members(tar: tarfile.TarFile, prefix: str) -> list[tarfile.TarInfo]:
@@ -367,11 +367,14 @@ def remap_paths(db_file: Path, pairs: list[tuple[str, str]]) -> None:
         return
     con = sqlite3.connect(db_file)
     try:
+        def like_escape(text: str) -> str:
+            return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
         for old, new in pairs:
+            # Separator też przez like_escape – na Windowsie to „\\”, czyli znak ucieczki we wzorcu.
             for table in ("tracks", "track_edits", "track_lyrics"):
                 con.execute(f"UPDATE {table} SET path = ? || substr(path, ?) WHERE path LIKE ? ESCAPE '\\'",
-                            (new, len(old) + 1, old.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-                             + os.sep + "%"))
+                            (new, len(old) + 1, like_escape(old + os.sep) + "%"))
         con.commit()
     finally:
         con.close()

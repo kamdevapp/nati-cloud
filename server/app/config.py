@@ -96,9 +96,9 @@ class Settings(BaseSettings):
         if not self.secret_key:
             key_file = self.data_dir / "secret.key"
             if not key_file.exists():
-                key_file.write_text(secrets.token_urlsafe(48))
+                key_file.write_text(secrets.token_urlsafe(48), encoding="utf-8")
                 key_file.chmod(0o600)
-            self.secret_key = key_file.read_text().strip()
+            self.secret_key = key_file.read_text(encoding="utf-8").strip()
 
 
 @lru_cache
